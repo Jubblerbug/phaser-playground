@@ -24,14 +24,16 @@ var WorldScene = new Phaser.Class({
 
       this.player = this.physics.add.sprite(50, 100, 'player', 21);
       this.physics.world.bounds.width = map.widthInPixels;
-      this.physics.world.bounds.height = map.heightinPixels;
+      this.physics.world.bounds.height = map.heightInPixels;
       this.player.setCollideWorldBounds(true);
 
       this.cursors = this.input.keyboard.createCursorKeys();
 
       this.cameras.main.setBounds(0, 0, map.widthInPixels, map.heightInPixels);
       this.cameras.main.startFollow(this.player);
-      this.cameras.main.roundPixels = true;
+      this.cameras.main.roundPixels = true;  
+
+      this.physics.add.overlap(this.player, this.spawns, this.onMeetEnemy, false, this);
 
       //  animation with key 'left', we don't need left and right as we will use one and flip the sprite
       this.anims.create({
@@ -65,12 +67,13 @@ var WorldScene = new Phaser.Class({
 
       this.spawns = this.physics.add.group({ classType: Phaser.GameObjects.Zone });
       for(var i = 0; i < 30; i++) {
-      var x = Phaser.Math.RND.between(0, this.physics.world.bounds.width);
-      var y = Phaser.Math.RND.between(0, this.physics.world.bounds.height);
-      // parameters are x, y, width, height
-      this.spawns.create(x, y, 20, 20);            
+            var x = Phaser.Math.RND.between(0, this.physics.world.bounds.width);
+            var y = Phaser.Math.RND.between(0, this.physics.world.bounds.height);
+            // parameters are x, y, width, height
+            this.spawns.create(x, y, 20, 20);            
       }        
 
+      // add collider
       this.physics.add.overlap(this.player, this.spawns, this.onMeetEnemy, false, this);
   },
   update: function(time, delta)

@@ -22,7 +22,7 @@ var WorldScene = new Phaser.Class({
       var obstacles = map.createStaticLayer('Obstacles', tiles, 0, 0);
       obstacles.setCollisionByExclusion([-1]);
 
-      this.player = this.physics.add.sprite(50, 100, 'player', 21);
+      this.player = this.physics.add.sprite(50, 100, 'player', 0);
       this.physics.world.bounds.width = map.widthInPixels;
       this.physics.world.bounds.height = map.heightInPixels;
       this.player.setCollideWorldBounds(true);
@@ -38,7 +38,7 @@ var WorldScene = new Phaser.Class({
       //  animation with key 'left', we don't need left and right as we will use one and flip the sprite
       this.anims.create({
           key: 'left',
-          frames: this.anims.generateFrameNumbers('player', { frames: [22, 28, 22, 34]}),
+          frames: this.anims.generateFrameNumbers('player', { frames: [1, 7, 1, 13]}),
           frameRate: 10,
           repeat: -1
       });
@@ -46,19 +46,19 @@ var WorldScene = new Phaser.Class({
       // animation with key 'right'
       this.anims.create({
           key: 'right',
-          frames: this.anims.generateFrameNumbers('player', { frames: [22, 28, 22, 34] }),
+          frames: this.anims.generateFrameNumbers('player', { frames: [1, 7, 1, 13] }),
           frameRate: 10,
           repeat: -1
       });
       this.anims.create({
           key: 'up',
-          frames: this.anims.generateFrameNumbers('player', { frames: [23, 29, 23, 35]}),
+          frames: this.anims.generateFrameNumbers('player', { frames: [2, 8, 2, 14]}),
           frameRate: 10,
           repeat: -1
       });
       this.anims.create({
           key: 'down',
-          frames: this.anims.generateFrameNumbers('player', { frames: [ 21, 27, 21, 33 ] }),
+          frames: this.anims.generateFrameNumbers('player', { frames: [ 0, 6, 0, 12 ] }),
           frameRate: 10,
           repeat: -1
       });

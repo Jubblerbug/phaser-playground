@@ -23,6 +23,9 @@ var Enemy = new Phaser.Class({
     initialize:
     function Enemy(scene, x, y, texture, frame, type, hp, damage) {
         Unit.call(this, scene, x, y, texture, frame, type, hp, damage);
+        this.flipX = true;
+        
+        this.setScale(2);
     }
 });
 
@@ -39,6 +42,25 @@ var PlayerCharacter = new Phaser.Class({
     }
 });
 
+var MenuItem = new Phaser.Class({
+    Extends: Phaser.GameObjects.Text,
+    
+    initialize:
+            
+    function MenuItem(x, y, text, scene) {
+        Phaser.GameObjects.Text.call(this, scene, x, y, text, { color: '#ffffff', align: 'left', fontSize: 15});
+    },
+    
+    select: function() {
+        this.setColor('#f8ff38');
+    },
+    
+    deselect: function() {
+        this.setColor('#ffffff');
+    }
+    
+});
+
 var BattleScene = new Phaser.Class({
  
     Extends: Phaser.Scene,
@@ -52,32 +74,31 @@ var BattleScene = new Phaser.Class({
     preload: function ()
     {
         this.load.spritesheet('player', 'assets/RPG_assets.png', { frameWidth: 16, frameHeight: 16 });
-        this.load.image('dragonblue', 'assets/dragonblue.png');
-        this.load.image('dragonorrange', 'assets/dragonorrange.png');
+        this.load.spritesheet('enemy', 'assets/enemy_assets.png', { frameWidth: 16, frameHeight: 16});
     },
     create: function ()
     {
         // change the background to green
         this.cameras.main.setBackgroundColor('rgba(0, 200, 0, 0.5)');
         
-        // player character - warrior
-        var warrior = new PlayerCharacter(this, 250, 50, 'player', 1, 'Warrior', 100, 20);        
-        this.add.existing(warrior);
+        // player character - elf
+        var elf = new PlayerCharacter(this, 250, 50, 'player', 1, 'Elf', 100, 20);        
+        this.add.existing(elf);
         
-        // player character - mage
-        var mage = new PlayerCharacter(this, 250, 100, 'player', 4, 'Mage', 80, 8);
-        this.add.existing(mage);            
+        // player character - magic elf
+        var magicElf = new PlayerCharacter(this, 250, 100, 'player', 4, 'MagicElf', 80, 8);
+        this.add.existing(magicElf);            
         
-        var dragonblue = new Enemy(this, 50, 50, 'dragonblue', null, 'Dragon', 50, 3);
-        this.add.existing(dragonblue);
-        
-        var dragonOrange = new Enemy(this, 50, 100, 'dragonorrange', null,'Dragon2', 50, 3);
-        this.add.existing(dragonOrange);
+        var debtCollector1 = new Enemy(this, 50, 50, 'enemy', 53, 'DebtCollector1', 20, 3);
+        this.add.existing(debtCollector1);
+
+        var debtCollector2 = new Enemy(this, 50, 100, 'enemy', 53, 'DebtCollector2', 20, 3);
+        this.add.existing(debtCollector2);
         
         // array with heroes
-        this.heroes = [ warrior, mage ];
+        this.heroes = [ elf, magicElf ];
         // array with enemies
-        this.enemies = [ dragonblue, dragonOrange ];
+        this.enemies = [ debtCollector1, debtCollector2 ];
         // array with both parties, who will attack
         this.units = this.heroes.concat(this.enemies);
         

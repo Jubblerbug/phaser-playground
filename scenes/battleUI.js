@@ -1,3 +1,35 @@
+var Message = new Phaser.Class({
+ 
+    Extends: Phaser.GameObjects.Container,
+ 
+    initialize:
+    function Message(scene, events) {
+        Phaser.GameObjects.Container.call(this, scene, 160, 30);
+        var graphics = this.scene.add.graphics();
+        this.add(graphics);
+        graphics.lineStyle(1, 0xffffff, 0.8);
+        graphics.fillStyle(0x031f4c, 0.3);        
+        graphics.strokeRect(-90, -15, 180, 30);
+        graphics.fillRect(-90, -15, 180, 30);
+        this.text = new Phaser.GameObjects.Text(scene, 0, 0, "", { color: '#ffffff', align: 'center', fontSize: 13, wordWrap: { width: 160, useAdvancedWrap: true }});
+        this.add(this.text);
+        this.text.setOrigin(0.5);        
+        events.on("Message", this.showMessage, this);
+        this.visible = false;
+    },
+    showMessage: function(text) {
+        this.text.setText(text);
+        this.visible = true;
+        if(this.hideEvent)
+            this.hideEvent.remove(false);
+        this.hideEvent = this.scene.time.addEvent({ delay: 2000, callback: this.hideMessage, callbackScope: this });
+    },
+    hideMessage: function() {
+        this.hideEvent = null;
+        this.visible = false;
+    }
+});
+
 var UIScene = new Phaser.Class({
  
     Extends: Phaser.Scene,
@@ -8,6 +40,15 @@ var UIScene = new Phaser.Class({
     {
         Phaser.Scene.call(this, { key: 'UIScene' });
     },
+    remapHeroes: function() {
+        var heroes = this.battleScene.heroes;
+        this.heroesMenu.remap(heroes);
+    },
+    remapEnemies: function() {
+        var enemies = this.battleScene.enemies;
+        this.enemiesMenu.remap(enemies);
+    },
+
  
     create: function ()
     {    
@@ -20,5 +61,67 @@ var UIScene = new Phaser.Class({
         this.graphics.fillRect(95, 150, 90, 100);
         this.graphics.strokeRect(188, 150, 130, 100);
         this.graphics.fillRect(188, 150, 130, 100);
+
+        // basic container to hold all menus
+        this.menus = this.add.container();
+            
+        this.heroesMenu = new HeroesMenu(195, 153, this);           
+        this.actionsMenu = new ActionsMenu(100, 153, this);            
+        this.enemiesMenu = new EnemiesMenu(8, 153, this);   
+        
+        // the currently selected menu 
+        this.currentMenu = this.actionsMenu;
+        
+        // add menus to the container
+        this.menus.add(this.heroesMenu);
+        this.menus.add(this.actionsMenu);
+        this.menus.add(this.enemiesMenu);
+  
+        this.battleScene = this.scene.get('BattleScene');
+
+        this.input.keyboard.on('keydown', this.onKeyInput, this);
+
+        this.remapHeroes();
+        this.remapEnemies();
+
+        this.battleScene.events.on("PlayerSelect", this.onPlayerSelect, this);
+        this.events.on("SelectEnemies", this.onSelectEnemies, this);
+        this.events.on("Enemy", this.onEnemy, this);
+
+        this.message = new Message(this, this.battleScene.events);
+        this.add.existing(this.message);
+
+        this.battleScene.nextTurn();
+
+    }
+    ,
+    onKeyInput: function(event) {
+        if(this.currentMenu) {
+            if(event.code === "ArrowUp") {
+                this.currentMenu.moveSelectionUp();
+            } else if(event.code === "ArrowDown") {
+                this.currentMenu.moveSelectionDown();
+            } else if(event.code === "ArrowRight" || event.code === "Shift") {
+ 
+            } else if(event.code === "Space" || event.code === "ArrowLeft") {
+                this.currentMenu.confirm();
+            } 
+        }
+    },
+    onPlayerSelect: function(id) {
+        this.heroesMenu.select(id);
+        this.actionsMenu.select(0);
+        this.currentMenu = this.actionsMenu;
+    },
+    onSelectEnemies: function() {
+        this.currentMenu = this.enemiesMenu;
+        this.enemiesMenu.select(0);
+    },
+    onEnemy: function(index) {
+        this.heroesMenu.deselect();
+        this.actionsMenu.deselect();
+        this.enemiesMenu.deselect();
+        this.currentMenu = null;
+        this.battleScene.receivePlayerSelection('attack', index);
     }
 });

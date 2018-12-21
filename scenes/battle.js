@@ -7,14 +7,31 @@ var Unit = new Phaser.Class({
         Phaser.GameObjects.Sprite.call(this, scene, x, y, texture, frame)
         this.type = type;
         this.maxHp = this.hp = hp;
-        this.damage = damage; // default damage                
+        this.damage = damage; // default damage     
+        this.living = true;         
+        this.menuItem = null;
     },
+    // we will use this to notify the menu item when the unit is dead
+    setMenuItem: function(item) {
+        this.menuItem = item;
+    },
+    // attack the target unit
     attack: function(target) {
-        target.takeDamage(this.damage);      
-    },
+        if(target.living) {
+            target.takeDamage(this.damage);
+            this.scene.events.emit("Message", this.type + " attacks " + target.type + " for " + this.damage + " damage");
+        }
+    },    
     takeDamage: function(damage) {
-        this.hp -= damage;        
-    }
+        this.hp -= damage;
+        if(this.hp <= 0) {
+            this.hp = 0;
+            this.menuItem.unitKilled();
+            this.living = false;
+            this.visible = false;   
+            this.menuItem = null;
+        }
+    }    
 });
 
 var Enemy = new Phaser.Class({
@@ -48,15 +65,20 @@ var MenuItem = new Phaser.Class({
     initialize:
             
     function MenuItem(x, y, text, scene) {
-        Phaser.GameObjects.Text.call(this, scene, x, y, text, { color: '#ffffff', align: 'left', fontSize: 15});
+        Phaser.GameObjects.Text.call(this, scene, x, y, text, { color: "#ffffff", align: "left", fontSize: 15});
     },
     
     select: function() {
-        this.setColor('#f8ff38');
+        this.setColor("#f8ff38");
     },
     
     deselect: function() {
-        this.setColor('#ffffff');
+        this.setColor("#ffffff");
+    },
+    // when the associated enemy or player unit is killed
+    unitKilled: function() {
+        this.active = false;
+        this.visible = false;
     }
     
 });
@@ -70,45 +92,61 @@ var Menu = new Phaser.Class({
         Phaser.GameObjects.Container.call(this, scene, x, y);
         this.menuItems = [];
         this.menuItemIndex = 0;
-        this.heroes = heroes;
         this.x = x;
-        this.y = y;
+        this.y = y;        
+        this.selected = false;
     },     
     addMenuItem: function(unit) {
         var menuItem = new MenuItem(0, this.menuItems.length * 20, unit, this.scene);
         this.menuItems.push(menuItem);
-        this.add(menuItem);        
-    },            
+        this.add(menuItem); 
+        return menuItem;
+    },  
+    // menu navigation 
     moveSelectionUp: function() {
         this.menuItems[this.menuItemIndex].deselect();
-        this.menuItemIndex--;
-        if(this.menuItemIndex < 0)
-            this.menuItemIndex = this.menuItems.length - 1;
+        do {
+            this.menuItemIndex--;
+            if(this.menuItemIndex < 0)
+                this.menuItemIndex = this.menuItems.length - 1;
+        } while(!this.menuItems[this.menuItemIndex].active);
         this.menuItems[this.menuItemIndex].select();
     },
     moveSelectionDown: function() {
         this.menuItems[this.menuItemIndex].deselect();
-        this.menuItemIndex++;
-        if(this.menuItemIndex >= this.menuItems.length)
-            this.menuItemIndex = 0;
+        do {
+            this.menuItemIndex++;
+            if(this.menuItemIndex >= this.menuItems.length)
+                this.menuItemIndex = 0;
+        } while(!this.menuItems[this.menuItemIndex].active);
         this.menuItems[this.menuItemIndex].select();
     },
-    // select the menu as a whole and an element with index from it
+    // select the menu as a whole and highlight the choosen element
     select: function(index) {
         if(!index)
-            index = 0;
+            index = 0;       
         this.menuItems[this.menuItemIndex].deselect();
         this.menuItemIndex = index;
+        while(!this.menuItems[this.menuItemIndex].active) {
+            this.menuItemIndex++;
+            if(this.menuItemIndex >= this.menuItems.length)
+                this.menuItemIndex = 0;
+            if(this.menuItemIndex == index)
+                return;
+        }        
         this.menuItems[this.menuItemIndex].select();
+        this.selected = true;
     },
     // deselect this menu
     deselect: function() {        
         this.menuItems[this.menuItemIndex].deselect();
         this.menuItemIndex = 0;
+        this.selected = false;
     },
     confirm: function() {
-        // when the player confirms their selection, do the action
-    } ,  
+        // when the player confirms his slection, do the action
+    },
+    // clear menu and remove all menu items
     clear: function() {
         for(var i = 0; i < this.menuItems.length; i++) {
             this.menuItems[i].destroy();
@@ -116,12 +154,14 @@ var Menu = new Phaser.Class({
         this.menuItems.length = 0;
         this.menuItemIndex = 0;
     },
+    // recreate the menu items
     remap: function(units) {
         this.clear();        
         for(var i = 0; i < units.length; i++) {
             var unit = units[i];
-            this.addMenuItem(unit.type);
+            unit.setMenuItem(this.addMenuItem(unit.type));            
         }
+        this.menuItemIndex = 0;
     }
 });
 
@@ -145,7 +185,7 @@ var ActionsMenu = new Phaser.Class({
         this.addMenuItem('Attack');
     },
     confirm: function() {      
-        this.scene.events.emit('SelectEnemies');        
+        this.scene.events.emit('SelectedAction');        
     }
     
 });
@@ -173,67 +213,113 @@ var BattleScene = new Phaser.Class({
     {
         Phaser.Scene.call(this, { key: 'BattleScene' });
     },
-    preload: function ()
-    {
-        this.load.spritesheet('player', 'assets/RPG_assets.png', { frameWidth: 16, frameHeight: 16 });
-        this.load.spritesheet('enemy', 'assets/enemy_assets.png', { frameWidth: 16, frameHeight: 16});
-    },
-    nextTurn: function() {
-        this.index++;
-        // if there are no more units, we start again from the first one
-        if(this.index >= this.units.length) {
-            this.index = 0;
+    checkEndBattle: function() {        
+        var victory = true;
+        // if all enemies are dead we have victory
+        for(var i = 0; i < this.enemies.length; i++) {
+            if(this.enemies[i].living)
+                victory = false;
         }
-        if(this.units[this.index]) {
-            // if its player hero
-            if(this.units[this.index] instanceof PlayerCharacter) {                
-                this.events.emit('PlayerSelect', this.index);
-            } else { // else if its enemy unit
-                // pick random hero
-                var r = Math.floor(Math.random() * this.heroes.length);
-                // call the enemy's attack function 
-                this.units[this.index].attack(this.heroes[r]);  
-              
-                // add timer for the next turn, so will have smooth gameplay
-                this.time.addEvent({ delay: 3000, callback: this.nextTurn, callbackScope: this });
-            }
+        var gameOver = true;
+        // if all heroes are dead we have game over
+        for(var i = 0; i < this.heroes.length; i++) {
+            if(this.heroes[i].living)
+                gameOver = false;
+        }
+        return victory || gameOver;
+    },
+    endBattle: function() {       
+        // clear state, remove sprites
+        this.heroes.length = 0;
+        this.enemies.length = 0;
+        for(var i = 0; i < this.units.length; i++) {
+            // link item
+            this.units[i].destroy();            
+        }
+        this.units.length = 0;
+        // sleep the UI
+        this.scene.sleep('UIScene');
+        // return to WorldScene and sleep current BattleScene
+        this.scene.switch('WorldScene');
+    },
+    startBattle: function() {
+       // player character - elf
+       var elf = new PlayerCharacter(this, 250, 50, 'player', 1, 'Elf', 100, 20);        
+       this.add.existing(elf);
+       
+       // player character - magic elf
+       var magicElf = new PlayerCharacter(this, 250, 100, 'player', 4, 'MagicElf', 80, 8);
+       this.add.existing(magicElf);            
+       
+       var debtCollector1 = new Enemy(this, 50, 50, 'enemy', 53, 'Debtor1', 20, 3);
+       this.add.existing(debtCollector1);
+
+       var debtCollector2 = new Enemy(this, 50, 100, 'enemy', 53, 'Debtor2', 20, 3);
+       this.add.existing(debtCollector2);
+       
+       // array with heroes
+       this.heroes = [ elf, magicElf ];
+       // array with enemies
+       this.enemies = [ debtCollector1, debtCollector2 ];
+       // array with both parties, who will attack
+       this.units = this.heroes.concat(this.enemies);
+        
+        this.index = -1; // currently active unit
+        
+        this.scene.run("UIScene");        
+    },
+    nextTurn: function() {  
+        // if we have victory or game over
+        if(this.checkEndBattle()) {           
+            this.endBattle();
+            return;
+        }
+        do {
+            // currently active unit
+            this.index++;
+            // if there are no more units, we start again from the first one
+            if(this.index >= this.units.length) {
+                this.index = 0;
+            }            
+        } while(!this.units[this.index].living);
+        // if its player hero
+        if(this.units[this.index] instanceof PlayerCharacter) {
+            // we need the player to select action and then enemy
+            this.events.emit("PlayerSelect", this.index);
+        } else { // else if its enemy unit
+            // pick random living hero to be attacked
+            var r;
+            do {
+                r = Math.floor(Math.random() * this.heroes.length);
+            } while(!this.heroes[r].living) 
+            // call the enemy's attack function 
+            this.units[this.index].attack(this.heroes[r]);  
+            // add timer for the next turn, so will have smooth gameplay
+            this.time.addEvent({ delay: 3000, callback: this.nextTurn, callbackScope: this });
         }
     },
     receivePlayerSelection: function(action, target) {
         if(action == 'attack') {            
-            this.units[this.index].attack(this.enemies[target]);              
+            this.units[this.index].attack(this.enemies[target]);      
+            this.cameras.main.shake(300);        
         }
         this.time.addEvent({ delay: 3000, callback: this.nextTurn, callbackScope: this });        
+    },
+    exitBattle: function() {
+        this.scene.sleep('UIScene');
+        this.scene.switch('WorldScene');
+    },
+    wake: function() {
+        this.scene.run('UIScene');  
+        this.time.addEvent({delay: 2000, callback: this.exitBattle, callbackScope: this});        
     },
     create: function ()
     {
         // change the background to white
-        this.cameras.main.setBackgroundColor('rgba(0, 0, 0, 0.5)');
+        this.cameras.main.setBackgroundColor('rgba(255, 255, 255, 0.5)');
         
-        // player character - elf
-        var elf = new PlayerCharacter(this, 250, 50, 'player', 1, 'Elf', 100, 20);        
-        this.add.existing(elf);
-        
-        // player character - magic elf
-        var magicElf = new PlayerCharacter(this, 250, 100, 'player', 4, 'MagicElf', 80, 8);
-        this.add.existing(magicElf);            
-        
-        var debtCollector1 = new Enemy(this, 50, 50, 'enemy', 53, 'Debtor1', 20, 3);
-        this.add.existing(debtCollector1);
-
-        var debtCollector2 = new Enemy(this, 50, 100, 'enemy', 53, 'Debtor2', 20, 3);
-        this.add.existing(debtCollector2);
-        
-        // array with heroes
-        this.heroes = [ elf, magicElf ];
-        // array with enemies
-        this.enemies = [ debtCollector1, debtCollector2 ];
-        // array with both parties, who will attack
-        this.units = this.heroes.concat(this.enemies);
-
-        // Run UI Scene at the same time
-        this.scene.launch('UIScene');
-
-        this.index = -1;
+        this.startBattle();
+        // on wake event we call startBattle too
+        this.sys.events.on('wake', this.startBattle, this);    
     }
 });

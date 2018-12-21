@@ -11,6 +11,12 @@ var WorldScene = new Phaser.Class({
   {
 
   },
+  wake: function() {
+    this.cursors.left.reset();
+    this.cursors.right.reset();
+    this.cursors.up.reset();
+    this.cursors.down.reset();
+},
   create: function()
   {
       var map = this.make.tilemap({ key: 'map'});
@@ -75,6 +81,8 @@ var WorldScene = new Phaser.Class({
 
       // add collider
       this.physics.add.overlap(this.player, this.spawns, this.onMeetEnemy, false, this);
+
+      this.sys.events.on('wake', this.wake, this);
   },
   update: function(time, delta)
   {

@@ -17,6 +17,7 @@
 <script src="./scenes/world.js"></script>
 <script src="./scenes/battle.js"></script>
 <script src="./scenes/battleUI.js"></script>
+<script src="./scenes/platform.js"></script>
 <script type="text/javascript">
 
    
@@ -32,17 +33,16 @@
         physics: {
             default: 'arcade',
             arcade: {
-                gravity: { y: 0 },
-                debug: true
+                gravity: { y: 0 }
             },
-            debug: true
         },
         scene: [
             BootScene,
             WorldScene,
             BattleScene,
             UIScene,
-            BreakoutScene
+            BreakoutScene,
+            PlatformScene
         ]
     };
 

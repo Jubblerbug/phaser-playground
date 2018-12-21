@@ -27,8 +27,9 @@ var WorldScene = new Phaser.Class({
 
       var obstacles = map.createStaticLayer('Obstacles', tiles, 0, 0);
       obstacles.setCollisionByExclusion([-1]);
-
+      this.add.sprite(100, 100, 'enemy', 4)
       this.player = this.physics.add.sprite(50, 100, 'player', 0);
+      
       this.physics.world.bounds.width = map.widthInPixels;
       this.physics.world.bounds.height = map.heightInPixels;
       this.player.setCollideWorldBounds(true);
@@ -76,11 +77,17 @@ var WorldScene = new Phaser.Class({
             var x = Phaser.Math.RND.between(0, this.physics.world.bounds.width);
             var y = Phaser.Math.RND.between(0, this.physics.world.bounds.height);
             // parameters are x, y, width, height
-            this.spawns.create(x, y, 20, 20);            
+            this.spawns.create(x, y, 20, 20);          
+            
+    
       }        
+
+      this.gameWorld = this.physics.add.group({ classType: Phaser.GameObjects.Zone});
+      this.gameWorld.create(90, 90, 20, 20);
 
       // add collider
       this.physics.add.overlap(this.player, this.spawns, this.onMeetEnemy, false, this);
+      this.physics.add.overlap(this.player, this.gameWorld, this.onStartPlatform, false, this);
 
       this.sys.events.on('wake', this.wake, this);
   },
@@ -126,5 +133,11 @@ var WorldScene = new Phaser.Class({
 
     // start battle 
     this.scene.switch('BattleScene');
-  }   
+  },
+  onStartPlatform: function(player, zone) {
+
+
+      this.cameras.main.fade(300);
+      this.scene.switch('PlatformScene');
+  }
 });
